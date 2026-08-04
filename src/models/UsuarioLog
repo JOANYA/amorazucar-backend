@@ -1,0 +1,58 @@
+class UsuarioLog {
+  #id_log;
+  #id_usuario;
+  #fecha_hora;
+  #accion;
+  #dispositivo;
+  #ip;
+  #navegador;
+
+  constructor({
+    id_log = null,
+    id_usuario,
+    fecha_hora = null,
+    accion,
+    dispositivo = null,
+    ip = null,
+    navegador = null
+  }) {
+    this.#id_log = id_log;
+    this.#id_usuario = id_usuario;
+    this.#fecha_hora = fecha_hora;
+    this.#accion = accion;
+    this.#dispositivo = dispositivo;
+    this.#ip = ip;
+    this.#navegador = navegador;
+  }
+
+  // Getters
+  get id_log() { return this.#id_log; }
+  get id_usuario() { return this.#id_usuario; }
+  get fecha_hora() { return this.#fecha_hora; }
+  get accion() { return this.#accion; }
+  get dispositivo() { return this.#dispositivo; }
+  get ip() { return this.#ip; }
+  get navegador() { return this.#navegador; }
+
+  // Setters
+  set id_log(val) { this.#id_log = val; }
+  set id_usuario(val) { this.#id_usuario = val; }
+  set accion(val) { this.#accion = val; }
+  set dispositivo(val) { this.#dispositivo = val; }
+  set ip(val) { this.#ip = val; }
+  set navegador(val) { this.#navegador = val; }
+
+  toJSON() {
+    return {
+      id_log: this.#id_log,
+      id_usuario: this.#id_usuario,
+      fecha_hora: this.#fecha_hora,
+      accion: this.#accion,
+      dispositivo: this.#dispositivo,
+      ip: this.#ip,
+      navegador: this.#navegador
+    };
+  }
+}
+
+module.exports = UsuarioLog;
