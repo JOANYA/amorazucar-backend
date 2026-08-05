@@ -5,11 +5,13 @@ const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '123456',
-  database: process.env.DB_NAME || 'gestionpasteleriadulceamor',
-  port: process.env.DB_PORT || 3306,
+  database: process.env.DB_NAME || 'defaultdb',
+  port: Number(process.env.DB_PORT) || 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  // ⚠️ Configuración SSL requerida para Aiven Cloud MySQL:
+  ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false
 });
 
 // Prueba de conexión
