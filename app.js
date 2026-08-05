@@ -2,7 +2,8 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-var cors = require('cors');                          // 👈 AGREGAR (línea nueva, junto a los demás require)
+var cors = require('cors');      
+app.use(cors());      // 👈 AGREGAR (línea nueva, junto a los demás require)
 
 // 🔌 Conexión a la Base de Datos
 require('./src/config/db');
