@@ -2,10 +2,15 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-var cors = require('cors');      
-app.use(cors());      // 👈 AGREGAR (línea nueva, junto a los demás require)
+var cors = require('cors');
 
-// 🔌 Conexión a la Base de Datos
+var app = express();          // 👈 esto debe ir ANTES de cualquier app.use()
+
+app.use(cors());              // 👈 ahora sí, después de crear app
+app.use(logger('dev'));
+app.use(express.json());
+// ...resto de tus app.use() existentes
+
 require('./src/config/db');
 
 // 📦 Importación de Rutas de la Pastelería
