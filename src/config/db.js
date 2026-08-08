@@ -5,6 +5,8 @@ if (!process.env.DB_HOST) {
   require('dotenv').config();
 }
 
+
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,

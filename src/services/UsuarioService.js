@@ -31,7 +31,13 @@ class UsuarioService {
       throw new Error('El DNI ya se encuentra registrado');
     }
 
-    const rolesValidos = ['admin', 'vendedor', 'pastelero'];
+    // Si no mandan rol o viene vacío, por defecto es cliente
+    if (!data.rol) {
+      data.rol = 'cliente';
+    }
+
+    // Actualizamos la lista de roles permitidos acorde a tu base de datos
+    const rolesValidos = ['admin', 'pastelero', 'cliente'];
     if (!rolesValidos.includes(data.rol)) {
       throw new Error('Rol no válido para el sistema de pastelería');
     }

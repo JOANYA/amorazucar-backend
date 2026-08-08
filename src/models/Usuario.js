@@ -17,7 +17,7 @@ class Usuario {
     nombre,
     apellido,
     password_hash,
-    rol,
+    rol = 'cliente', // <-- AQUÍ ESTABLECEMOS 'cliente' POR DEFECTO
     telefono = null,
     correo = null,
     estado = 'Activo',
@@ -29,7 +29,7 @@ class Usuario {
     this.#nombre = nombre;
     this.#apellido = apellido;
     this.#password_hash = password_hash;
-    this.#rol = rol;
+    this.#rol = rol || 'cliente'; // <-- DOBLE SEGURIDAD SI LLEGA VACÍO
     this.#telefono = telefono;
     this.#correo = correo;
     this.#estado = estado;
