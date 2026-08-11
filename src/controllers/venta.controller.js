@@ -17,7 +17,7 @@ async function notificarCliente(idUsuario, mensaje, idVenta) {
 /** Envía la misma notificación a todos los usuarios con rol 'admin' (para que se enteren de comprobantes nuevos por revisar). */
 async function notificarAdmins(mensaje, idVenta) {
     try {
-        const [admins] = await db.query("SELECT id_usuario FROM Usuario WHERE rol = 'admin'");
+        const [admins] = await db.query("SELECT id_usuario FROM usuario WHERE rol = 'admin'");
         for (const { id_usuario } of admins) {
             await NotificacionService.crearNotificacion(id_usuario, mensaje, idVenta);
         }
@@ -41,18 +41,18 @@ const HORAS_LIMITE_PENDIENTE = 24;
 async function cancelarPedidosVencidos() {
     try {
         const [vencidos] = await db.query(
-            `SELECT id_venta, id_usuario FROM Venta
+            `SELECT id_venta, id_usuario FROM venta
              WHERE estado_venta = 'Pendiente'
                AND fecha_hora <= DATE_SUB(NOW(), INTERVAL ? HOUR)`,
             [HORAS_LIMITE_PENDIENTE]
         );
 
         for (const { id_venta, id_usuario } of vencidos) {
-            const [detalles] = await db.query('SELECT id_postre, cantidad FROM Detalle_Venta WHERE id_venta = ?', [id_venta]);
+            const [detalles] = await db.query('SELECT id_postre, cantidad FROM detalle_venta WHERE id_venta = ?', [id_venta]);
             for (const d of detalles) {
-                await db.query('UPDATE Postre SET stock_total = stock_total + ? WHERE id_postre = ?', [d.cantidad, d.id_postre]);
+                await db.query('UPDATE postre SET stock_total = stock_total + ? WHERE id_postre = ?', [d.cantidad, d.id_postre]);
             }
-            await db.query("UPDATE Venta SET estado_venta = 'Cancelada' WHERE id_venta = ?", [id_venta]);
+            await db.query("UPDATE venta SET estado_venta = 'Cancelada' WHERE id_venta = ?", [id_venta]);
             await notificarCliente(
                 id_usuario,
                 `Tu pedido #${id_venta} se canceló automáticamente porque no se confirmó el pago dentro de ${HORAS_LIMITE_PENDIENTE} horas.`,
@@ -103,7 +103,7 @@ exports.registrarVenta = async (req, res) => {
             ]);
         }
 
-        const [ventaRows] = await connection.query('SELECT * FROM Venta WHERE id_venta = ?', [id_venta]);
+        const [ventaRows] = await connection.query('SELECT * FROM venta WHERE id_venta = ?', [id_venta]);
 
         return res.status(201).json({
             status: 'success',
@@ -153,9 +153,9 @@ exports.listarVentas = async (req, res) => {
                     v.tipo_comprobante, v.estado_venta,
                     COALESCE(c.nombre_razon_social, 'Público General') AS cliente,
                     CONCAT(u.nombre, ' ', u.apellido) AS atendido_por
-             FROM Venta v
-             LEFT JOIN Cliente c ON v.id_cliente = c.id_cliente
-             INNER JOIN Usuario u ON v.id_usuario = u.id_usuario
+             FROM venta v
+             LEFT JOIN cliente c ON v.id_cliente = c.id_cliente
+             INNER JOIN usuario u ON v.id_usuario = u.id_usuario
              ${whereSql}
              ORDER BY v.fecha_hora DESC`,
             params
@@ -176,7 +176,7 @@ exports.subirComprobante = async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Debes adjuntar una foto del comprobante.' });
         }
 
-        const [ventaRows] = await db.query('SELECT id_usuario, id_venta FROM Venta WHERE id_venta = ?', [idVenta]);
+        const [ventaRows] = await db.query('SELECT id_usuario, id_venta FROM venta WHERE id_venta = ?', [idVenta]);
         const venta = ventaRows[0];
         if (!venta) {
             return res.status(404).json({ status: 'error', message: 'Pedido no encontrado.' });
@@ -189,7 +189,7 @@ exports.subirComprobante = async (req, res) => {
         }
 
         const rutaRelativa = `/images/comprobantes/${req.file.filename}`;
-        await db.query('UPDATE Venta SET comprobante_pago = ? WHERE id_venta = ?', [rutaRelativa, idVenta]);
+        await db.query('UPDATE venta SET comprobante_pago = ? WHERE id_venta = ?', [rutaRelativa, idVenta]);
         await notificarAdmins(`El cliente subió el comprobante del pedido #${idVenta}. Revísalo para confirmar el pago.`, idVenta);
 
         return res.json({ status: 'success', message: 'Comprobante subido. Tu pedido quedó pendiente de confirmación.', comprobante_pago: rutaRelativa });
@@ -203,7 +203,7 @@ exports.subirComprobante = async (req, res) => {
 exports.confirmarPago = async (req, res) => {
     try {
         const idVenta = req.params.id;
-        const [ventaRows] = await db.query('SELECT id_usuario, estado_venta FROM Venta WHERE id_venta = ?', [idVenta]);
+        const [ventaRows] = await db.query('SELECT id_usuario, estado_venta FROM venta WHERE id_venta = ?', [idVenta]);
         const venta = ventaRows[0];
 
         if (!venta) {
@@ -216,7 +216,7 @@ exports.confirmarPago = async (req, res) => {
             return res.json({ status: 'success', message: 'Este pago ya estaba confirmado.' });
         }
 
-        await db.query("UPDATE Venta SET estado_venta = 'Completada' WHERE id_venta = ?", [idVenta]);
+        await db.query("UPDATE venta SET estado_venta = 'Completada' WHERE id_venta = ?", [idVenta]);
         await notificarCliente(venta.id_usuario, `¡Tu pago del pedido #${idVenta} fue confirmado! 🎉`, idVenta);
         return res.json({ status: 'success', message: 'Pago confirmado. El pedido pasó a "Pagado".' });
     } catch (error) {
@@ -228,7 +228,7 @@ exports.confirmarPago = async (req, res) => {
 exports.cancelarVenta = async (req, res) => {
     try {
         const idVenta = req.params.id;
-        const [ventaRows] = await db.query('SELECT id_usuario, estado_venta FROM Venta WHERE id_venta = ?', [idVenta]);
+        const [ventaRows] = await db.query('SELECT id_usuario, estado_venta FROM venta WHERE id_venta = ?', [idVenta]);
         const venta = ventaRows[0];
         if (!venta) {
             return res.status(404).json({ status: 'error', message: 'Pedido no encontrado.' });
@@ -252,12 +252,12 @@ exports.cancelarVenta = async (req, res) => {
         }
 
         // Devolver el stock de cada producto del pedido.
-        const [detalles] = await db.query('SELECT id_postre, cantidad FROM Detalle_Venta WHERE id_venta = ?', [idVenta]);
+        const [detalles] = await db.query('SELECT id_postre, cantidad FROM detalle_venta WHERE id_venta = ?', [idVenta]);
         for (const d of detalles) {
-            await db.query('UPDATE Postre SET stock_total = stock_total + ? WHERE id_postre = ?', [d.cantidad, d.id_postre]);
+            await db.query('UPDATE postre SET stock_total = stock_total + ? WHERE id_postre = ?', [d.cantidad, d.id_postre]);
         }
 
-        await db.query("UPDATE Venta SET estado_venta = 'Cancelada' WHERE id_venta = ?", [idVenta]);
+        await db.query("UPDATE venta SET estado_venta = 'Cancelada' WHERE id_venta = ?", [idVenta]);
 
         // Si canceló el admin, avisar al dueño del pedido. Si canceló el
         // propio cliente, avisar a los admins (por si ya estaban revisando
@@ -279,7 +279,7 @@ exports.cancelarVenta = async (req, res) => {
 exports.eliminarVentaCancelada = async (req, res) => {
     try {
         const idVenta = req.params.id;
-        const [ventaRows] = await db.query('SELECT estado_venta FROM Venta WHERE id_venta = ?', [idVenta]);
+        const [ventaRows] = await db.query('SELECT estado_venta FROM venta WHERE id_venta = ?', [idVenta]);
         const venta = ventaRows[0];
         
         if (!venta) {
@@ -291,7 +291,7 @@ exports.eliminarVentaCancelada = async (req, res) => {
         }
 
         // En lugar de DELETE, marcar como oculto para la pantalla
-        await db.query("UPDATE Venta SET visible = 0 WHERE id_venta = ?", [idVenta]);
+        await db.query("UPDATE venta SET visible = 0 WHERE id_venta = ?", [idVenta]);
 
         return res.json({ status: 'success', message: 'Pedido eliminado de la pantalla.' });
     } catch (error) {

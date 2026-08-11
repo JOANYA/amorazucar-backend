@@ -5,7 +5,7 @@ class NotificacionRepository {
     const [rows] = await pool.query(
       `SELECT * FROM notificacion 
        WHERE id_usuario = ? 
-       ORDER BY fecha_creacion DESC`,
+       ORDER BY fecha_envio DESC`,
       [idUsuario]
     );
     return rows;
