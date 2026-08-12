@@ -151,7 +151,7 @@ exports.listarVentas = async (req, res) => {
         const [rows] = await db.query(
             `SELECT v.id_venta, v.fecha_hora, v.monto_total, v.metodo_pago, v.comprobante_pago,
                     v.tipo_comprobante, v.estado_venta,
-                    COALESCE(c.nombre_razon_social, 'Público General') AS cliente,
+                    COALESCE(c.nombre_razon_social, CONCAT(u.nombre, ' ', u.apellido), 'Público General') AS cliente,
                     CONCAT(u.nombre, ' ', u.apellido) AS atendido_por
              FROM venta v
              LEFT JOIN cliente c ON v.id_cliente = c.id_cliente
@@ -188,11 +188,11 @@ exports.subirComprobante = async (req, res) => {
             return res.status(403).json({ status: 'error', message: 'No puedes subir el comprobante de un pedido que no es tuyo.' });
         }
 
-        const rutaRelativa = `/images/comprobantes/${req.file.filename}`;
-        await db.query('UPDATE venta SET comprobante_pago = ? WHERE id_venta = ?', [rutaRelativa, idVenta]);
+        const urlComprobante = req.file.path;
+        await db.query('UPDATE venta SET comprobante_pago = ? WHERE id_venta = ?', [urlComprobante, idVenta]);
         await notificarAdmins(`El cliente subió el comprobante del pedido #${idVenta}. Revísalo para confirmar el pago.`, idVenta);
 
-        return res.json({ status: 'success', message: 'Comprobante subido. Tu pedido quedó pendiente de confirmación.', comprobante_pago: rutaRelativa });
+        return res.json({ status: 'success', message: 'Comprobante subido. Tu pedido quedó pendiente de confirmación.', comprobante_pago: urlComprobante });
     } catch (error) {
         console.error('Error al subir comprobante:', error);
         return res.status(500).json({ status: 'error', message: error.message || 'Error al subir el comprobante' });

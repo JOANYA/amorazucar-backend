@@ -65,9 +65,10 @@ export const subirImagenPostre = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: 'Debes adjuntar una imagen del postre.' });
     }
-    const rutaRelativa = `/images/postres/${req.file.filename}`;
-    const resultado = await PostreService.actualizarImagen(req.params.id, rutaRelativa);
-    res.json({ mensaje: 'Imagen del postre actualizada', imagen: rutaRelativa, resultado });
+    // req.file.path ya es la URL pública de Cloudinary (https://res.cloudinary.com/...)
+    const urlImagen = req.file.path;
+    const resultado = await PostreService.actualizarImagen(req.params.id, urlImagen);
+    res.json({ mensaje: 'Imagen del postre actualizada', imagen: urlImagen, resultado });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }

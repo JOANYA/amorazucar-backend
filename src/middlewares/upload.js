@@ -1,63 +1,54 @@
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('../config/cloudinary');
 
-// Carpeta donde se guardan las fotos de comprobantes (Yape/Plin).
-// Se sirve como estática porque app.js ya tiene:
-//   app.use(express.static(path.join(__dirname, 'public')));
-// Entonces un archivo guardado aquí queda accesible en:
-//   http://localhost:3000/images/comprobantes/<archivo>
-const CARPETA_COMPROBANTES = path.join(__dirname, '..', '..', 'public', 'images', 'comprobantes');
-
-if (!fs.existsSync(CARPETA_COMPROBANTES)) {
-  fs.mkdirSync(CARPETA_COMPROBANTES, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, CARPETA_COMPROBANTES),
-  filename: (req, file, cb) => {
-    const idVenta = req.params.id || 'sinid';
-    const extension = path.extname(file.originalname) || '.jpg';
-    const nombreUnico = `venta-${idVenta}-${Date.now()}${extension}`;
-    cb(null, nombreUnico);
-  }
-});
+// ⚠️ Ya NO se guarda nada en disco local (public/images/...). Render usa
+// disco efímero: cada vez que el servicio se reinicia o se redeploya, todo
+// lo que se guardó en el filesystem se pierde. Por eso las fotos de
+// comprobantes y de postres se suben directo a Cloudinary, que es
+// almacenamiento externo y persistente. `req.file.path` (que llena
+// multer-storage-cloudinary) ya es la URL pública y definitiva de la
+// imagen — eso es justo lo que se guarda en `comprobante_pago` / `imagen`.
 
 const filtroImagen = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(new Error('El comprobante debe ser una imagen (foto o captura de pantalla).'));
+    cb(new Error('El archivo debe ser una imagen (foto o captura de pantalla).'));
   }
 };
 
-const uploadComprobante = multer({
-  storage,
-  fileFilter: filtroImagen,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5 MB
+// --- Comprobantes de pago (Yape/Plin) ---
+const storageComprobantes = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'azucar-amor/comprobantes',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    // ids únicos y buscables: venta-<id>-<timestamp>
+    public_id: (req, file) => `venta-${req.params.id || 'sinid'}-${Date.now()}`,
+  },
 });
 
-// --- Fotos de producto (postres), mostradas en Tienda y Home ---
-const CARPETA_POSTRES = path.join(__dirname, '..', '..', 'public', 'images', 'postres');
+const uploadComprobante = multer({
+  storage: storageComprobantes,
+  fileFilter: filtroImagen,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+});
 
-if (!fs.existsSync(CARPETA_POSTRES)) {
-  fs.mkdirSync(CARPETA_POSTRES, { recursive: true });
-}
-
-const storagePostre = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, CARPETA_POSTRES),
-  filename: (req, file, cb) => {
-    const idPostre = req.params.id || 'sinid';
-    const extension = path.extname(file.originalname) || '.jpg';
-    const nombreUnico = `postre-${idPostre}-${Date.now()}${extension}`;
-    cb(null, nombreUnico);
-  }
+// --- Fotos de producto (postres) ---
+const storagePostres = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'azucar-amor/postres',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    public_id: (req, file) => `postre-${req.params.id || 'sinid'}-${Date.now()}`,
+  },
 });
 
 const uploadImagenPostre = multer({
-  storage: storagePostre,
+  storage: storagePostres,
   fileFilter: filtroImagen,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5 MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
 });
 
 module.exports = { uploadComprobante, uploadImagenPostre };
