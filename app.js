@@ -48,4 +48,12 @@ setInterval(() => {
     ventaController.cancelarPedidosVencidos();
 }, 30 * 60 * 1000);
 
+app.use((err, req, res, next) => {
+    console.error('❌ Error no capturado:', err);
+    res.status(err.status || err.http_code || 500).json({
+        status: 'error',
+        message: err.message || 'Error interno del servidor'
+    });
+});
+
 module.exports = app;
