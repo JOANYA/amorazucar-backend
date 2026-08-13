@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const culqi = require('../config/culqi');
 const NotificacionService = require('../services/NotificacionService');
 
 /**
@@ -303,3 +304,69 @@ exports.eliminarVentaCancelada = async (req, res) => {
 // Se expone para poder ejecutarla también desde un job periódico en app.js,
 // así los pedidos se cancelan aunque nadie abra la pantalla de Pedidos.
 exports.cancelarPedidosVencidos = cancelarPedidosVencidos;
+
+exports.pagarConTarjeta = async (req, res) => {
+    try {
+        const idVenta = req.params.id;
+        const { token_id, email } = req.body;
+
+        if (!token_id) {
+            return res.status(400).json({ status: 'error', message: 'Falta el token de la tarjeta.' });
+        }
+
+        const [ventaRows] = await db.query(
+            'SELECT id_usuario, monto_total, estado_venta FROM venta WHERE id_venta = ?',
+            [idVenta]
+        );
+        const venta = ventaRows[0];
+        if (!venta) {
+            return res.status(404).json({ status: 'error', message: 'Pedido no encontrado.' });
+        }
+
+        const esDueno = venta.id_usuario === req.usuario?.id_usuario;
+        const esAdmin = req.usuario?.rol === 'admin';
+        if (!esDueno && !esAdmin) {
+            return res.status(403).json({ status: 'error', message: 'No puedes pagar un pedido que no es tuyo.' });
+        }
+
+        if (venta.estado_venta === 'Completada') {
+            return res.json({ status: 'success', message: 'Este pedido ya estaba pagado.' });
+        }
+        if (venta.estado_venta === 'Cancelada' || venta.estado_venta === 'Anulada') {
+            return res.status(400).json({ status: 'error', message: 'El pedido fue cancelado, no se puede cobrar.' });
+        }
+
+        // Culqi trabaja en céntimos: S/ 25.50 -> 2550
+        const montoEnCentimos = Math.round(Number(venta.monto_total) * 100);
+
+        let cobro;
+        try {
+            cobro = await culqi.charges.createCharge({
+                amount: String(montoEnCentimos),
+                currency_code: 'PEN',
+                email: email || 'cliente@azucaryamor.com',
+                source_id: token_id,
+            });
+        } catch (errorCulqi) {
+            // La tarjeta fue rechazada (fondos, datos inválidos, etc.) -> el
+            // pedido queda igual que cualquier otro pedido cancelado.
+            console.error('Culqi rechazó el cobro:', errorCulqi);
+            return res.status(402).json({
+                status: 'error',
+                message: errorCulqi?.merchant_message || errorCulqi?.user_message || 'La tarjeta fue rechazada. Intenta con otra.'
+            });
+        }
+
+        await db.query("UPDATE venta SET estado_venta = 'Completada' WHERE id_venta = ?", [idVenta]);
+        await notificarCliente(venta.id_usuario, `¡Tu pago con tarjeta del pedido #${idVenta} fue confirmado! 🎉`, idVenta);
+
+        return res.json({
+            status: 'success',
+            message: 'Pago con tarjeta confirmado.',
+            id_cargo: cobro.id
+        });
+    } catch (error) {
+        console.error('Error al pagar con tarjeta:', error);
+        return res.status(500).json({ status: 'error', message: error.message || 'Error al procesar el pago con tarjeta' });
+    }
+};

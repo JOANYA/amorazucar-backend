@@ -12,6 +12,7 @@ router.use(verificarToken);
 router.get('/', ventaController.listarVentas);
 router.post('/', ventaController.registrarVenta);
 router.post('/:id/comprobante', uploadComprobante.single('comprobante'), ventaController.subirComprobante);
+router.post('/:id/pagar-tarjeta', ventaController.pagarConTarjeta);
 router.put('/:id/confirmar-pago', soloAdmin, ventaController.confirmarPago);
 router.delete('/:id', ventaController.cancelarVenta);
 
